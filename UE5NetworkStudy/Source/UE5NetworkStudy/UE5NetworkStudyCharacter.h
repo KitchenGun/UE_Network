@@ -47,6 +47,7 @@ class AUE5NetworkStudyCharacter : public ACharacter
 public:
 	AUE5NetworkStudyCharacter();
 	
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 
@@ -55,7 +56,7 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
-			
+		
 
 protected:
 	// APawn interface
@@ -64,10 +65,44 @@ protected:
 	// To add mapping context
 	virtual void BeginPlay();
 
+	//hp var update
+	void OnHealthUpdate();
+
 public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	
+	/** Getter for Max Health.*/
+	UFUNCTION(BlueprintPure, Category = "Health")
+	FORCEINLINE float GetMaxHp() const { return MaxHp; }
+	/** Getter for cur Health.*/
+	UFUNCTION(BlueprintPure, Category = "Health")
+	FORCEINLINE float GetCurrentHp() const { return CurrentHp; }
+	
+	// current hp change it will be call
+	UFUNCTION()
+	void OnRep_CurrentHp();
+
+	UFUNCTION(BlueprintCallable, Category = "Health")
+		void SetCurrentHp(float Value);
+
+	//Damage Function
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	float TakeDamage
+	(
+		float Damage, 
+		struct FDamageEvent const& DamageEvent, 
+		AController* EventInstigator,
+		AActor* DamageCauser
+	) override;
+
+protected:
+	UPROPERTY(EditDefaultsOnly,Category = "Health")
+	float MaxHp = 100.0f;
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentHp)
+	float CurrentHp = 100.0f;
+
 };
 

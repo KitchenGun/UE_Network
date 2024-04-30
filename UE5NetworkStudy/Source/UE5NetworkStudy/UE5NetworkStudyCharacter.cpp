@@ -6,10 +6,13 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Net/UnrealNetwork.h"
+#include "Engine/Engine.h"
 #include "GameFramework/Controller.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -52,6 +55,16 @@ AUE5NetworkStudyCharacter::AUE5NetworkStudyCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	
+	//Set hp
+	MaxHp = 100.0f;
+	CurrentHp = MaxHp;
+}
+
+void AUE5NetworkStudyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AUE5NetworkStudyCharacter, CurrentHp);
 }
 
 void AUE5NetworkStudyCharacter::BeginPlay()
@@ -126,5 +139,49 @@ void AUE5NetworkStudyCharacter::Look(const FInputActionValue& Value)
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
+	}
+}
+
+void AUE5NetworkStudyCharacter::OnRep_CurrentHp()
+{
+
+	//체력 상태 변할시 호출
+	OnHealthUpdate();
+}
+
+void AUE5NetworkStudyCharacter::SetCurrentHp(float Value)
+{
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		CurrentHp = FMath::Clamp(Value, 0.0f, MaxHp);
+		OnHealthUpdate();
+	}
+}
+
+float AUE5NetworkStudyCharacter::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	float damageApplied = CurrentHp - Damage;
+	SetCurrentHp(damageApplied);
+	return damageApplied;
+}
+
+
+
+void AUE5NetworkStudyCharacter::OnHealthUpdate()
+{
+	//클라이언트에서만 호출
+	if (IsLocallyControlled())
+	{
+		UE_LOG(LogTemp, Display, TEXT("Your Hp is %.1f"), CurrentHp);
+		if (CurrentHp <= 0)
+		{
+			UE_LOG(LogTemp, Display, TEXT("Your Dead"));
+		}
+	}
+	//서버에서 호출
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		FString healthMessage = FString::Printf(TEXT("%s Current Hp is %.1f"),*GetFName().ToString(), CurrentHp);
+		UE_LOG(LogTemp, Display, TEXT("%s"), *healthMessage);
 	}
 }
